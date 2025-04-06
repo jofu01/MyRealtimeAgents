@@ -35,6 +35,7 @@ function App() {
   const [selectedAgentName, setSelectedAgentName] = useState<string>("");
   const [selectedAgentConfigSet, setSelectedAgentConfigSet] =
     useState<AgentConfig[] | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string>("coral");
 
   const [dataChannel, setDataChannel] = useState<RTCDataChannel | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -250,7 +251,7 @@ function App() {
       session: {
         modalities: ["text", "audio"],
         instructions,
-        voice: "coral",
+        voice: selectedVoice,
         input_audio_format: "pcm16",
         output_audio_format: "pcm16",
         input_audio_transcription: { model: "whisper-1" },
@@ -355,6 +356,42 @@ function App() {
   ) => {
     const newAgentName = e.target.value;
     setSelectedAgentName(newAgentName);
+  };
+
+  // Function to clean restart the session - used for voice changes
+  const cleanRestart = async () => {
+    // First, make sure we disconnect properly
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    
+    if (dcRef.current) {
+      dcRef.current.close();
+      dcRef.current = null;
+    }
+    
+    // Update the session status to trigger UI changes
+    setSessionStatus("DISCONNECTED");
+    
+    // Small delay before reconnecting
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Now reconnect
+    connectToRealtime();
+  };
+
+  const handleVoiceChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const newVoice = e.target.value;
+    setSelectedVoice(newVoice);
+    
+    // For voice changes, we need a clean restart to avoid
+    // "Cannot update a conversation's voice if assistant audio is present" error
+    if (sessionStatus === "CONNECTED") {
+      await cleanRestart();
+    }
   };
 
   useEffect(() => {
@@ -480,6 +517,41 @@ function App() {
               </div>
             </div>
           )}
+
+          <div className="flex items-center ml-6">
+            <label className="flex items-center text-base gap-1 mr-2 font-medium">
+              Voice
+            </label>
+            <div className="relative inline-block">
+              <select
+                value={selectedVoice}
+                onChange={handleVoiceChange}
+                className="appearance-none border border-gray-300 rounded-lg text-base px-2 py-1 pr-8 cursor-pointer font-normal focus:outline-none"
+              >
+                <option value="coral">coral</option>
+                <option value="alloy">alloy</option>
+                <option value="ash">ash</option>
+                <option value="ballad">ballad</option>
+                <option value="echo">echo</option>
+                <option value="sage">sage</option>
+                <option value="shimmer">shimmer</option>
+                <option value="verse">verse</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-gray-600">
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.44l3.71-3.21a.75.75 0 111.04 1.08l-4.25 3.65a.75.75 0 01-1.04 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
